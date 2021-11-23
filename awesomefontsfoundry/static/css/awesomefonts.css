@@ -41,6 +41,7 @@ body {
 	min-height:100vh; margin:0; position:relative;
 
 	background-color: #FFFF00;
+	color: black;
 
 	font-size: 13pt;
 	line-height: 140%;
@@ -63,7 +64,7 @@ body {
 }
 
 a {
-	color: #0093C6;
+	color: #E84E1B;
 }
 
 #header {
@@ -93,10 +94,10 @@ a {
 	margin-right: 20px;
 }
 
-.link a {
+/* .link a {
     color: #FFF;
 }
-
+ */
 #stage {
 	/* padding: 10px;
 	padding-top: 50px;
@@ -115,7 +116,7 @@ a {
     width: 900px;
     max-width: 95%;
     margin: auto;
-    margin-top: 60px;
+    /* margin-top: 60px; */
     /* padding-bottom: 250px;	 */
 }
 

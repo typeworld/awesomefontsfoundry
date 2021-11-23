@@ -1,9 +1,11 @@
 # project
 import awesomefontsfoundry
+from awesomefontsfoundry import definitions
 
 # other
 import hotmetal
 from flask import request, g
+from flask import session as flaskSession
 from google.cloud import ndb
 
 awesomefontsfoundry.app.config["modules"].append("hypertext")
@@ -27,9 +29,10 @@ class HTML(hotmetal.HotMetal):
 
         self.JSLink("https://code.jquery.com/jquery-3.4.1.min.js")
         self.CSSLink("/static/css/default.css?v=" + g.instanceVersion)
-        self.CSSLink("/static/css/typeworld.css?v=" + g.instanceVersion)
+        self.CSSLink("/static/css/awesomefonts.css?v=" + g.instanceVersion)
         self.CSSLink("https://fonts.googleapis.com/icon?family=Material+Icons+Outlined")
         self.JSLink("/static/js/default.js?v=" + g.instanceVersion)
+        self.JSLink("/static/js/awesomefonts.js?v=" + g.instanceVersion)
 
         self.META(name="viewport", content="width=device-width, initial-scale=1")
 
@@ -172,8 +175,8 @@ class HTML(hotmetal.HotMetal):
         self.DIV(class_="floatleft atom")
         self.A(href="/")
         self.IMG(
-            src="/static/images/logowithlogotype.svg",
-            style="width:250px; height: 163px;",
+            src="/static/images/logo.svg",
+            style="width:150px; height: 150px;",
         )
         self._A()
         self._DIV()
@@ -206,41 +209,42 @@ class HTML(hotmetal.HotMetal):
             self._DIV()  # .floatleft
 
         self.DIV(class_="floatleft")
-        if g.user:
-            localesForUser = g.user.isTranslatorForLocales()
-            if localesForUser:
-                self.SPAN(class_="link")
-                if len(localesForUser) > 1:
-                    self.A(href="/translate")
-                else:
-                    self.A(
-                        href="/translate/%s" % localesForUser[0].key.parent().get(read_consistency=ndb.STRONG).ISO639_1
-                    )
-                self.T('<span class="material-icons-outlined">translate</span> Translate')
-                self._A()
-                self._SPAN()
-        self.SPAN(class_="link")
-        self.A(href="/app")
-        self.T('<span class="material-icons-outlined">download</span> Download App')
-        self._A()
-        self._SPAN()
-        self.SPAN(class_="link")
-        self.A(href="/developer")
-        self.T('<span class="material-icons-outlined">memory</span> Developer Information')
-        self._A()
-        self._SPAN()
+        # if g.user:
+        #     localesForUser = g.user.isTranslatorForLocales()
+        #     if localesForUser:
+        #         self.SPAN(class_="link")
+        #         if len(localesForUser) > 1:
+        #             self.A(href="/translate")
+        #         else:
+        #             self.A(
+        #                 href="/translate/%s" % localesForUser[0].key.parent().get(read_consistency=ndb.STRONG).ISO639_1
+        #             )
+        #         self.T('<span class="material-icons-outlined">translate</span> Translate')
+        #         self._A()
+        #         self._SPAN()
 
-        self.SPAN(class_="link")
-        self.A(href="/blog")
-        self.T('<span class="material-icons-outlined">menu_book</span> Blog')
-        self._A()
-        self._SPAN()
+        # self.SPAN(class_="link")
+        # self.A(href="/app")
+        # self.T('<span class="material-icons-outlined">download</span> Download App')
+        # self._A()
+        # self._SPAN()
+        # self.SPAN(class_="link")
+        # self.A(href="/developer")
+        # self.T('<span class="material-icons-outlined">memory</span> Developer Information')
+        # self._A()
+        # self._SPAN()
 
-        self.SPAN(class_="link", style="margin-top: 10px;")
-        self.A(href="https://twitter.com/TypeDotWorld", style="color: #777")
-        self.T("@TypeDotWorld on Twitter")
-        self._A()
-        self._SPAN()
+        # self.SPAN(class_="link")
+        # self.A(href="/blog")
+        # self.T('<span class="material-icons-outlined">menu_book</span> Blog')
+        # self._A()
+        # self._SPAN()
+
+        # self.SPAN(class_="link", style="margin-top: 10px;")
+        # self.A(href="https://twitter.com/TypeDotWorld", style="color: #777")
+        # self.T("@TypeDotWorld on Twitter")
+        # self._A()
+        # self._SPAN()
 
         self._DIV()  # .floatleft
         self._DIV()  # .clear
@@ -249,7 +253,7 @@ class HTML(hotmetal.HotMetal):
         self.DIV(class_="floatright")
         if g.user:
             self.SPAN(class_="link", style="color: #777")
-            self.T(g.user.email)
+            self.T(g.user.userdata()["account"]["email"])
             self._SPAN()
             self.SPAN(class_="link")
             self.A(href="/account")
@@ -264,15 +268,24 @@ class HTML(hotmetal.HotMetal):
         else:
             if "/resetpassword" not in request.path:
                 self.SPAN(class_="link")
-                self.A(onclick="showLogin();")
-                self.T('<span class="material-icons-outlined">login</span> Log In')
+                self.A(
+                    href=(
+                        "http://0.0.0.0:80/signin"
+                        f"?client_id={definitions.TYPEWORLD_SIGNIN_CLIENTID}"
+                        "&response_type=code"
+                        "&redirect_uri=http%3A%2F%2F0.0.0.0%3A8080"
+                        f"&scope={definitions.TYPEWORLD_SIGNIN_SCOPE}"
+                        f"&state={g.session.get('loginCode')}"
+                    )
+                )
+                self.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')
                 self._A()
                 self._SPAN()
-                self.SPAN(class_="link")
-                self.A(onclick="showCreateUserAccount();")
-                self.T('<span class="material-icons-outlined">person_add</span> Create Account')
-                self._A()
-                self._SPAN()
+                # self.SPAN(class_="link")
+                # self.A(onclick="showCreateUserAccount();")
+                # self.T('<span class="material-icons-outlined">person_add</span> Create Account')
+                # self._A()
+                # self._SPAN()
         self._DIV()
 
         self._DIV()  # .clear

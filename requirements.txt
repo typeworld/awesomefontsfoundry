@@ -1,4 +1,4 @@
-Flask==1.1.1
+Flask
 google-api-python-client
 google-cloud-ndb
 google-cloud-secret-manager

@@ -198,13 +198,6 @@ function hideDialog() {
 
 }
 
-function login(username, password) {
-	AJAX('#action', '/login', { 'username': username, 'password': password, 'inline': 'true' });
-}
-
-function logout() {
-	AJAX('#action', '/logout');
-}
 
 function enableButtons() {
 	$('.disabled').removeClass('disabled');

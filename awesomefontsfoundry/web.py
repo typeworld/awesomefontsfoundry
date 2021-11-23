@@ -76,10 +76,7 @@ class Translation_Category(WebAppModel):
 
 # project
 import awesomefontsfoundry
-from awesomefontsfoundry import classes
-
-# from awesomefontsfoundry import definitions
-from awesomefontsfoundry import hypertext
+from awesomefontsfoundry import classes, helpers
 
 # from awesomefontsfoundry import helpers
 # from awesomefontsfoundry import api
@@ -97,6 +94,7 @@ import base64
 from google.cloud import ndb
 from urllib.parse import unquote, urlencode
 import copy
+import hotmetal
 
 awesomefontsfoundry.app.config["modules"].append("web")
 
@@ -1200,7 +1198,7 @@ def dataContainerReload(item=None):
 
                 if additionalReloadDataContainer and additionalReloadDataContainer != g.form._get("dataContainer"):
                     oldHTML = g.html
-                    g.html = hypertext.HTML()
+                    g.html = hotmetal.HotMetal()
 
                     dataContainerReloadSpecific(additionalReloadDataContainer)
 
