@@ -39,14 +39,14 @@ class User(TWNDBModel):
     # }
 
     def userdata(self):
-        response = requests.post(
-            definitions.TYPEWORLD_GETUSERDATA_URL,
-            headers={"Authorization": "Bearer " + self.typeWorldToken},
-        ).json()
-        if response["status"] == "success":
-            return response["data"]
+        if self.typeWorldToken:
+            response = requests.post(
+                definitions.TYPEWORLD_GETUSERDATA_URL,
+                headers={"Authorization": "Bearer " + self.typeWorldToken},
+            ).json()
+            return response
         else:
-            return {}
+            return {"message": "Token is revoked", "status": "fail"}
 
 
 class Session(TWNDBModel):

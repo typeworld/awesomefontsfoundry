@@ -2,7 +2,7 @@ import logging
 import os
 import time
 import requests
-from google.cloud import ndb, storage
+from google.cloud import ndb
 from google.cloud import secretmanager
 from flask import Flask, g, request
 from flask import session as flaskSession
@@ -114,7 +114,7 @@ def before_request():
                 user = classes.User.get_or_insert(getUserDataResponse["data"]["user_id"])
                 user.typeWorldToken = getTokenResponse["access_token"]
                 user.put()
-                g.session.set("userID", user.userdata()["user_id"])
+                g.session.set("userID", user.userdata()["data"]["user_id"])
                 g.user = user
 
                 g.html.SCRIPT()
@@ -125,6 +125,15 @@ def before_request():
     else:
         if g.session.get("userID"):
             g.user = classes.User.get_or_insert(g.session.get("userID"))
+
+    # Test token
+    if g.user:
+        response = g.user.userdata()
+        if response["status"] == "fail":
+            g.user.typeWorldToken = None
+            g.user.put()
+            g.user = None
+            g.session.set("loginCode", helpers.Garbage(40))
 
 
 @app.after_request
@@ -164,7 +173,7 @@ def index():
     g.html.DIV(class_="content", style="width: 1000px;")
     g.html.H1()
     if g.user:
-        g.html.T(f"Hello {g.user.userdata()['account']['name']},<br />Welcome to Awesome Fonts")
+        g.html.T(f"Hello {g.user.userdata()['data']['account']['name']},<br />Welcome to Awesome Fonts")
     else:
         g.html.T("Welcome to Awesome Fonts")
     g.html._H1()

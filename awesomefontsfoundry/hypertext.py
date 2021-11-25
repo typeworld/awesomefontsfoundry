@@ -176,7 +176,7 @@ class HTML(hotmetal.HotMetal):
         self.A(href="/")
         self.IMG(
             src="/static/images/logo.svg",
-            style="width:150px; height: 150px;",
+            style="width:200px; height: 200px;",
         )
         self._A()
         self._DIV()
@@ -252,8 +252,8 @@ class HTML(hotmetal.HotMetal):
 
         self.DIV(class_="floatright")
         if g.user:
-            self.SPAN(class_="link", style="color: #777")
-            self.T(g.user.userdata()["account"]["email"])
+            self.SPAN(class_="link")
+            self.T(g.user.userdata()["data"]["account"]["email"])
             self._SPAN()
             self.SPAN(class_="link")
             self.A(href="/account")
@@ -270,10 +270,10 @@ class HTML(hotmetal.HotMetal):
                 self.SPAN(class_="link")
                 self.A(
                     href=(
-                        "http://0.0.0.0:80/signin"
+                        f"{definitions.TYPEWORLD_SIGNIN_URL}"
                         f"?client_id={definitions.TYPEWORLD_SIGNIN_CLIENTID}"
                         "&response_type=code"
-                        "&redirect_uri=http%3A%2F%2F0.0.0.0%3A8080"
+                        f"&redirect_uri={definitions.ROOT}"
                         f"&scope={definitions.TYPEWORLD_SIGNIN_SCOPE}"
                         f"&state={g.session.get('loginCode')}"
                     )
@@ -281,11 +281,6 @@ class HTML(hotmetal.HotMetal):
                 self.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')
                 self._A()
                 self._SPAN()
-                # self.SPAN(class_="link")
-                # self.A(onclick="showCreateUserAccount();")
-                # self.T('<span class="material-icons-outlined">person_add</span> Create Account')
-                # self._A()
-                # self._SPAN()
         self._DIV()
 
         self._DIV()  # .clear

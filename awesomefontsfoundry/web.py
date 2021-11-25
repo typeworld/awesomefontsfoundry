@@ -244,8 +244,8 @@ class Form(dict):
 @awesomefontsfoundry.app.route("/env", methods=["POST", "GET"])
 def env():
 
-    if not g.admin:
-        return abort(401)
+    # if not g.admin:
+    #     return abort(401)
 
     g.html.mediumSeparator()
 

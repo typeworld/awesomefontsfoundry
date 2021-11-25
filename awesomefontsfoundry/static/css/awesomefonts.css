@@ -40,7 +40,7 @@ body {
 
 	min-height:100vh; margin:0; position:relative;
 
-	background-color: #FFFF00;
+	background-color: #6eff00;
 	color: black;
 
 	font-size: 13pt;
@@ -64,7 +64,10 @@ body {
 }
 
 a {
-	color: #E84E1B;
+	text-decoration: underline;
+	cursor: pointer;
+	color: black;
+	text-underline-offset: 4px;
 }
 
 #header {
@@ -516,14 +519,6 @@ li {
 p + p, li + li {
 	margin-top: 12px;
 }
-
-
-a {
-	text-decoration: none;
-	cursor: pointer;
-}
-
-
 
 em {
 	margin-left: -4px;
