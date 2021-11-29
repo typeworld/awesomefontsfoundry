@@ -2,11 +2,10 @@
 import awesomefontsfoundry
 from awesomefontsfoundry import definitions
 
+
 # other
 import hotmetal
 from flask import request, g
-from flask import session as flaskSession
-from google.cloud import ndb
 
 awesomefontsfoundry.app.config["modules"].append("hypertext")
 
@@ -33,6 +32,9 @@ class HTML(hotmetal.HotMetal):
         self.CSSLink("https://fonts.googleapis.com/icon?family=Material+Icons+Outlined")
         self.JSLink("/static/js/default.js?v=" + g.instanceVersion)
         self.JSLink("/static/js/awesomefonts.js?v=" + g.instanceVersion)
+
+        self.JSLink("https://unpkg.com/@popperjs/core@2")
+        self.JSLink("https://unpkg.com/tippy.js@6")
 
         self.META(name="viewport", content="width=device-width, initial-scale=1")
 
@@ -171,12 +173,19 @@ class HTML(hotmetal.HotMetal):
         self.DIV(id="header")
 
         self.DIV(class_="clear")
-
+        title = (
+            "<p>Welcome to Awesome Fonts, the imaginary independent type foundry that exists to showcase the usage of"
+            " the Type.World Sign-In service as well as the Type.World font installation app.</p><p>Please purchase a"
+            " few fonts (using a fake credit card number), sign in using the Type.World Sign-In, and see how"
+            " the Type.World app loads your fonts.</p>"
+        )
         self.DIV(class_="floatleft atom")
         self.A(href="/")
         self.IMG(
             src="/static/images/logo.svg",
             style="width:200px; height: 200px;",
+            title=awesomefontsfoundry.tooltip("logo", title),
+            alt=title,
         )
         self._A()
         self._DIV()
@@ -184,67 +193,31 @@ class HTML(hotmetal.HotMetal):
         self.DIV(class_="floatcenter")
         self.DIV(class_="clear")
 
-        if g.admin:
-            self.DIV(class_="floatleft", style="margin-right: 40px;")
-            self.SPAN(class_="link")
-            self.A(href="/translations")
-            self.T("Translation Keywords")
-            self._A()
-            self._SPAN()
-            self.SPAN(class_="link")
-            self.A(href="/languages")
-            self.T("Languages")
-            self._A()
-            self._SPAN()
-            self.SPAN(class_="link")
-            self.A(href="/tracebacks")
-            self.T("Tracebacks")
-            self._A()
-            self._SPAN()
-            self.SPAN(class_="link")
-            self.A(href="/admin")
-            self.T("Admin")
-            self._A()
-            self._SPAN()
-            self._DIV()  # .floatleft
+        # if g.admin:
+        #     self.DIV(class_="floatleft", style="margin-right: 40px;")
+        #     self.SPAN(class_="link")
+        #     self.A(href="/translations")
+        #     self.T("Translation Keywords")
+        #     self._A()
+        #     self._SPAN()
+        #     self.SPAN(class_="link")
+        #     self.A(href="/languages")
+        #     self.T("Languages")
+        #     self._A()
+        #     self._SPAN()
+        #     self.SPAN(class_="link")
+        #     self.A(href="/tracebacks")
+        #     self.T("Tracebacks")
+        #     self._A()
+        #     self._SPAN()
+        #     self.SPAN(class_="link")
+        #     self.A(href="/admin")
+        #     self.T("Admin")
+        #     self._A()
+        #     self._SPAN()
+        #     self._DIV()  # .floatleft
 
         self.DIV(class_="floatleft")
-        # if g.user:
-        #     localesForUser = g.user.isTranslatorForLocales()
-        #     if localesForUser:
-        #         self.SPAN(class_="link")
-        #         if len(localesForUser) > 1:
-        #             self.A(href="/translate")
-        #         else:
-        #             self.A(
-        #                 href="/translate/%s" % localesForUser[0].key.parent().get(read_consistency=ndb.STRONG).ISO639_1
-        #             )
-        #         self.T('<span class="material-icons-outlined">translate</span> Translate')
-        #         self._A()
-        #         self._SPAN()
-
-        # self.SPAN(class_="link")
-        # self.A(href="/app")
-        # self.T('<span class="material-icons-outlined">download</span> Download App')
-        # self._A()
-        # self._SPAN()
-        # self.SPAN(class_="link")
-        # self.A(href="/developer")
-        # self.T('<span class="material-icons-outlined">memory</span> Developer Information')
-        # self._A()
-        # self._SPAN()
-
-        # self.SPAN(class_="link")
-        # self.A(href="/blog")
-        # self.T('<span class="material-icons-outlined">menu_book</span> Blog')
-        # self._A()
-        # self._SPAN()
-
-        # self.SPAN(class_="link", style="margin-top: 10px;")
-        # self.A(href="https://twitter.com/TypeDotWorld", style="color: #777")
-        # self.T("@TypeDotWorld on Twitter")
-        # self._A()
-        # self._SPAN()
 
         self._DIV()  # .floatleft
         self._DIV()  # .clear
@@ -253,7 +226,7 @@ class HTML(hotmetal.HotMetal):
         self.DIV(class_="floatright")
         if g.user:
             self.SPAN(class_="link")
-            self.T(g.user.userdata()["data"]["account"]["email"])
+            self.T(g.user.userdata()["userdata"]["scope"]["account"]["data"]["email"])
             self._SPAN()
             self.SPAN(class_="link")
             self.A(href="/account")
@@ -269,18 +242,29 @@ class HTML(hotmetal.HotMetal):
             if "/resetpassword" not in request.path:
                 self.SPAN(class_="link")
                 self.A(
-                    href=(
-                        f"{definitions.TYPEWORLD_SIGNIN_URL}"
-                        f"?client_id={definitions.TYPEWORLD_SIGNIN_CLIENTID}"
-                        "&response_type=code"
-                        f"&redirect_uri={definitions.ROOT}"
-                        f"&scope={definitions.TYPEWORLD_SIGNIN_SCOPE}"
-                        f"&state={g.session.get('loginCode')}"
+                    onclick=(
+                        f"login('{definitions.TYPEWORLD_SIGNIN_URL}', '{definitions.TYPEWORLD_SIGNIN_CLIENTID}',"
+                        f" window.location.href, '{definitions.TYPEWORLD_SIGNIN_SCOPE}',"
+                        f" '{g.session.get('loginCode')}')"
                     )
                 )
                 self.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')
                 self._A()
                 self._SPAN()
+
+        # Cart
+        products = g.session.get("cart") or []
+        title = None
+        if products:
+            title = awesomefontsfoundry.tooltip("addedtocart", "The fonts have been added to the cart")
+        self.SPAN(class_="link", style="margin-top: 15px;")
+        self.A(href="/cart", title=title)
+        self.T('<span class="material-icons-outlined">shopping_cart</span> Cart')
+        self._A()
+        if products:
+            self.T(f" ({len(products)})")
+        self._SPAN()
+
         self._DIV()
 
         self._DIV()  # .clear

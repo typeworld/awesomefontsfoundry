@@ -4,13 +4,12 @@ import time
 import requests
 from google.cloud import ndb
 from google.cloud import secretmanager
-from flask import Flask, g, request
+from flask import Flask, g, request, Response
 from flask import session as flaskSession
 
 # from flask_session import Session
 
 # from flask_session import Session
-import urllib.parse
 
 logging.basicConfig(level=logging.WARNING)
 GAE = os.getenv("GAE_ENV", "").startswith("standard")
@@ -24,14 +23,6 @@ else:
     client = ndb.Client.from_service_account_json(keyfile)
     secretClient = secretmanager.SecretManagerServiceClient.from_service_account_json(keyfile)
 
-# Pre-initialize datastore context
-def ndb_wsgi_middleware(wsgi_app):
-    def middleware(environ, start_response):
-        with client.context():
-            return wsgi_app(environ, start_response)
-
-    return middleware
-
 
 def secret(secret_id, version_id=1):
     """
@@ -44,6 +35,15 @@ def secret(secret_id, version_id=1):
     return payload
 
 
+# Pre-initialize datastore context
+def ndb_wsgi_middleware(wsgi_app):
+    def middleware(environ, start_response):
+        with client.context():
+            return wsgi_app(environ, start_response)
+
+    return middleware
+
+
 app = Flask(__name__)
 app.wsgi_app = ndb_wsgi_middleware(app.wsgi_app)  # Wrap the app in middleware.
 app.secret_key = secret("FLASK_SECRET_KEY")
@@ -52,12 +52,23 @@ app.config["modules"] = ["__main__"]
 
 # Local imports
 # happen here because of circular imports,
-from . import account  # noqa: E402
+from . import account  # noqa: E402,F401
 from . import classes  # noqa: E402
+from . import checkout  # noqa: E402
 from . import definitions  # noqa: E402
 from . import helpers  # noqa: E402
 from . import hypertext  # noqa: E402
 from . import web  # noqa: E402,F401
+from . import typeworldapi  # noqa: E402,F401
+
+
+def tooltip(name, text):
+
+    tooltips = g.session.get("tooltips") or []
+    if name not in tooltips:
+        tooltips.append(name)
+        g.session.set("tooltips", tooltips)
+        return text
 
 
 @app.before_request
@@ -111,10 +122,10 @@ def before_request():
             ).json()
             # Create user if necessary and save token
             if getUserDataResponse["status"] == "success":
-                user = classes.User.get_or_insert(getUserDataResponse["data"]["user_id"])
+                user = classes.User.get_or_insert(getUserDataResponse["userdata"]["user_id"])
                 user.typeWorldToken = getTokenResponse["access_token"]
                 user.put()
-                g.session.set("userID", user.userdata()["data"]["user_id"])
+                g.session.set("userID", user.userdata()["userdata"]["user_id"])
                 g.user = user
 
                 g.html.SCRIPT()
@@ -134,6 +145,10 @@ def before_request():
             g.user.put()
             g.user = None
             g.session.set("loginCode", helpers.Garbage(40))
+
+    # Admin
+    if g.user and g.user.admin:
+        g.admin = True
 
 
 @app.after_request
@@ -170,13 +185,39 @@ def after_request(response):
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    g.html.DIV(class_="content", style="width: 1000px;")
-    g.html.H1()
-    if g.user:
-        g.html.T(f"Hello {g.user.userdata()['data']['account']['name']},<br />Welcome to Awesome Fonts")
-    else:
-        g.html.T("Welcome to Awesome Fonts")
-    g.html._H1()
+    g.html.DIV(class_="content", style="width: 700px;")
+
+    # g.html.H1()
+    # if g.user:
+    #     g.html.T(
+    #         f"Hello {g.user.userdata()['userdata']['scope']['account']['data']['name']},<br />Welcome to Awesome Fonts"
+    #     )
+    # else:
+    #     g.html.T("Welcome to Awesome Fonts")
+    # g.html._H1()
+
+    if g.admin:
+        g.html.P()
+        classes.Product().new()
+        g.html._P()
+
+    googleFontsFamilies = []
+    for product in classes.Product.query().fetch():
+        product.container("overview")
+        string = product.name
+        if product.googleFontsFamilySuffix:
+            string += product.googleFontsFamilySuffix
+        googleFontsFamilies.append(string)
+
+    familyCode = "&".join(("family=" + x) for x in googleFontsFamilies).replace(" ", "+")
+    g.html.T(
+        f"""
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?{familyCode}&display=swap" rel="stylesheet">    
+    """
+    )
 
     g.html._DIV()  # .content
 
@@ -193,16 +234,6 @@ def performLogin(user):
     g.admin = g.user.admin
 
     # flaskSession["sessionID"] = session.key.urlsafe().decode()
-
-
-def performLogout():
-    if g.session:
-        g.session.key.delete()
-    g.session = None
-    g.user = None
-    g.admin = False
-
-    flaskSession.clear()
 
 
 @app.route("/login", methods=["POST"])
@@ -227,15 +258,22 @@ def login():
 @app.route("/logout", methods=["POST"])
 def logout():
 
-    if g.session:
-        g.session.key.delete()
-    g.session = None
     g.user = None
     g.admin = False
 
-    flaskSession.clear()
+    # Set random loginCode
+    g.session.set("loginCode", helpers.Garbage(40))
+    g.session.set("userID", None)
 
-    return "<script>location.reload();</script>"
+    return "<script>window.location.reload();</script>"
+
+
+@app.route("/resettooltips", methods=["GET"])
+def resettooltips():
+
+    g.session.set("tooltips", [])
+
+    return Response("ok", 200, mimetype="text/plain")
 
 
 if __name__ == "__main__":
