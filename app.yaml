@@ -1,7 +1,7 @@
-runtime: python37
-instance_class: F1
-# automatic_scaling:
-#   max_instances: 1
+runtime: python39
+instance_class: F2
+automatic_scaling:
+  max_instances: 1
 handlers:
 - url: /.well-known
   static_dir: awesomefontsfoundry/static
@@ -10,5 +10,4 @@ handlers:
 - url: /.*
   secure: always
   script: auto
-entrypoint: gunicorn -t 0 -b :$PORT awesomefontsfoundry:app
-app_engine_apis: true
+entrypoint: gunicorn -t 0 -b :$PORT -w 2 awesomefontsfoundry:app

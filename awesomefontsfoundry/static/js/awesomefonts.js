@@ -18,7 +18,7 @@ function remove(name) {
     AJAX('#action', '/cart/remove', { "products": name });
 }
 
-function checkout(name) {
+function checkout() {
     AJAX('#action', '/cart/checkout');
 }
 

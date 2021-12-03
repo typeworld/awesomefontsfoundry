@@ -69,6 +69,12 @@ def account():
         g.html._A()
         g.html._P()
 
+        g.html.P()
+        g.html.T(g.user.subscriptionURL(accessToken=True))
+        g.html.BR()
+        g.html.T(g.user.subscriptionURL(accessToken=False))
+        g.html._P()
+
     g.html._DIV()  # .content
 
     return g.html.generate()

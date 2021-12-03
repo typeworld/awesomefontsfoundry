@@ -1,8 +1,9 @@
 import awesomefontsfoundry
 from awesomefontsfoundry import classes, definitions, account, helpers
 from flask import g
-
+import requests
 from awesomefontsfoundry.helpers import Garbage
+from awesomefontsfoundry.web import resetpassword
 
 
 @awesomefontsfoundry.app.route("/cart", methods=["GET", "POST"])
@@ -68,8 +69,9 @@ def checkout():
         g.html.SPAN(class_="link")
         g.html.A(
             onclick=(
-                f"login('{definitions.TYPEWORLD_SIGNIN_URL}', '{definitions.TYPEWORLD_SIGNIN_CLIENTID}',"
-                f" window.location.href, '{definitions.TYPEWORLD_SIGNIN_SCOPE}', '{g.session.get('loginCode')}')"
+                f"login('{definitions.TYPEWORLD_SIGNIN_URL}',"
+                f" '{awesomefontsfoundry.secret('TYPEWORLD_SIGNIN_CLIENTID')}', window.location.href,"
+                f" '{definitions.TYPEWORLD_SIGNIN_SCOPE}', '{g.session.get('loginCode')}')"
             )
         )
         g.html.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')
@@ -159,6 +161,29 @@ def cart_checkout():
 
     # Reset Cart
     g.session.set("cart", [])
+
+    # Update subscription
+    url = g.user.subscriptionURL()
+    parameters = {
+        "APIKey": awesomefontsfoundry.secret("TYPEWORLD_API_KEY"),
+        "subscriptionURL": url,
+    }
+    print("updateSubscription")
+    print("updateSubscription parameters", parameters)
+    response = requests.post("https://api.type.world/v1/updateSubscription", data=parameters).json()
+    print("updateSubscription response", response)
+
+    # Invite user to share subscription
+    url = g.user.subscriptionURL()
+    parameters = {
+        "targetUserEmail": g.user.userdata()["userdata"]["scope"]["account"]["data"]["email"],
+        "APIKey": awesomefontsfoundry.secret("TYPEWORLD_API_KEY"),
+        "subscriptionURL": url,
+    }
+    print("inviteUserToSubscription")
+    print("inviteUserToSubscription parameters", parameters)
+    response = requests.post("https://api.type.world/v1/inviteUserToSubscription", data=parameters).json()
+    print("inviteUserToSubscription response", response)
 
     return "<script>window.location.href='/done';</script>"
 

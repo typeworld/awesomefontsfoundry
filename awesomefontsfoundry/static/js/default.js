@@ -8,6 +8,8 @@ function AJAX(container, url, data = {}, propertyNames = [], callback = null) {
 		data["inline"] = "true";
 	}
 
+	var files = false;
+
 	for (var i in propertyNames) {
 
 		// Process values
@@ -27,6 +29,9 @@ function AJAX(container, url, data = {}, propertyNames = [], callback = null) {
 			}
 			else if ($('#' + key).is('input:file')) {
 				value = document.getElementById(key).files[0];
+				if (value != undefined) {
+					files = true;
+				}
 			}
 			else {
 				value = $('#' + key).val();
@@ -38,13 +43,28 @@ function AJAX(container, url, data = {}, propertyNames = [], callback = null) {
 
 			data[key] = value;
 
-			// console.log(data);
-
 		}
 	}
 
+	var form_data = new FormData();
 
-	$.post(url, data)
+	for (var key in data) {
+		form_data.append(key, data[key]);
+	}
+
+	if (files) {
+		processData = false;
+		contentType = false;
+		data = form_data;
+	}
+	else {
+		processData = undefined;
+		contentType = undefined;
+		data = data;
+	}
+
+
+	$.ajax({ url: url, data: data, type: "POST", processData: processData, contentType: contentType }) // , processData: true , contentType: false
 		.done(function (response, statusText, xhr) {
 
 			// console.log(response);

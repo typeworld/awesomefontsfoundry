@@ -1,7 +1,10 @@
 import awesomefontsfoundry
-from awesomefontsfoundry import classes
-from flask import request, Response
+from awesomefontsfoundry import classes, definitions
+from flask import request, Response, abort
 import typeworld
+import typeworld.api
+import json
+import base64
 
 from awesomefontsfoundry import helpers
 
@@ -27,7 +30,7 @@ def api():
 
     # API Root
     root = typeworld.api.RootResponse()
-    subscriptionURL = f"typeworld://json+{subscriptionID}:{secretKey}@awesomefonts.appspot.com/typeworldapi"
+    subscriptionURL = f"typeworld://json+https//{subscriptionID}:{secretKey}@awesomefonts.appspot.com/typeworldapi"
     APIKey = awesomefontsfoundry.secret("TYPEWORLD_API_KEY")
     incomingAPIKey = request.values.get("APIKey")
 
@@ -50,6 +53,7 @@ def api():
                 root,
                 subscriptionURL,
                 APIKey,
+                incomingAPIKey,
                 subscriptionID,
                 secretKey,
                 accessToken,
@@ -71,6 +75,7 @@ def api():
                 fonts,
                 subscriptionURL,
                 APIKey,
+                incomingAPIKey,
                 subscriptionID,
                 secretKey,
                 accessToken,
@@ -94,6 +99,7 @@ def api():
                 fonts,
                 subscriptionURL,
                 APIKey,
+                incomingAPIKey,
                 subscriptionID,
                 secretKey,
                 accessToken,
@@ -132,7 +138,8 @@ def endpoint(root):
     # Apply data
     endpoint.name.en = "Awesome Fonts"
     endpoint.name.de = "Geile Schriften"
-    endpoint.canonicalURL = "https://awesomefonts.appspot.com/typeworldapi"
+    # endpoint.canonicalURL = "https://awesomefonts.appspot.com/typeworldapi"
+    endpoint.canonicalURL = definitions.ROOT + "/typeworldapi"
     endpoint.websiteURL = "https://awesomefonts.appspot.com"
     endpoint.adminEmail = "tech@type.world"
     endpoint.supportedCommands = [
@@ -141,6 +148,7 @@ def endpoint(root):
         "installFonts",
         "uninstallFonts",
     ]
+    endpoint.publisherTypes = ["retail"]
 
     # Return successfully, no message
     return True, None
@@ -161,6 +169,8 @@ def installableFonts(
     """
     Process `installableFonts` command
     """
+
+    print("installableFonts")
 
     # Create `installableFonts` object, attach to `root`
     installableFonts = typeworld.api.InstallableFontsResponse()
@@ -242,6 +252,18 @@ def installableFonts(
 
         # Now we’re passed the security check and may continue ...
 
+        # User information
+        try:
+            if __user__:
+                userData = __user__.userdata()
+                installableFonts.userName.en = userData["userdata"]["scope"]["account"]["data"]["name"]
+                installableFonts.userEmail = userData["userdata"]["scope"]["account"]["data"]["email"]
+
+                # Setting this to true here out of lazyness. Real world implementations should follow another logic.
+                installableFonts.userIsVerified = True
+        except:
+            pass
+
         # Create object tree for `installableFonts` out of font data in `__user__`
         success, message = createInstallableFontsObjectTree(installableFonts, __user__)
 
@@ -298,7 +320,7 @@ def installFonts(
         return True, None
 
     # Secret Key doesn't match with user, return `insufficientPermission` immediately
-    if secretKey != __user__.__secretKey__:
+    if secretKey != __user__.secretKey:
         installFonts.response = "insufficientPermission"
         return True, None
 
@@ -347,7 +369,7 @@ def installFonts(
 
     # Pull data out of your own data source
     # Note: __subscriptionDataSource__() doesn’t exist in this sample code
-    __ownDataSource__ = __user__.__subscriptionDataSource__()
+    __ownDataSource__ = None
 
     # Create object tree for `installFonts` out of font data in `__ownDataSource__`
     success, message = createInstallFontsObjectTree(
@@ -397,12 +419,12 @@ def uninstallFonts(
 
     # User doesn't exist, return `validTypeWorldUserAccountRequired` immediately
     if __user__ == None:
-        installableFonts.response = "validTypeWorldUserAccountRequired"
+        uninstallFonts.response = "validTypeWorldUserAccountRequired"
         return True, None
 
     # Secret Key doesn't match with user, return `insufficientPermission` immediately
-    if secretKey != __user__.__secretKey__:
-        installableFonts.response = "insufficientPermission"
+    if secretKey != __user__.secretKey:
+        uninstallFonts.response = "insufficientPermission"
         return True, None
 
     ##################################################################
@@ -423,6 +445,7 @@ def uninstallFonts(
     # Has not been verified yet, so we need to verify them now
     else:
         # Verify user with central type.world server now, save into global variable `verifiedTypeWorldUserCredentials`
+
         verifiedTypeWorldUserCredentials = verifyUserCredentials(
             APIKey,
             incomingAPIKey,
@@ -447,7 +470,7 @@ def uninstallFonts(
 
     # Pull data out of your own data source
     # Note: __subscriptionDataSource__() doesn’t exist in this sample code
-    __ownDataSource__ = __user__.__subscriptionDataSource__()
+    __ownDataSource__ = None
 
     # Create object tree for `uninstallFonts` out of font data in `__ownDataSource__`
     success, message = createUninstallFontsObjectTree(
@@ -465,7 +488,7 @@ def uninstallFonts(
     return True, None
 
 
-def createInstallableFontsObjectTree(installableFonts, __ownDataSource__):
+def createInstallableFontsObjectTree(installableFonts, __user__):
     """
     Apply incoming data of `__ownDataSource__` to `installableFonts`.
     This sample code here is very abstract and incomplete.
@@ -478,78 +501,100 @@ def createInstallableFontsObjectTree(installableFonts, __ownDataSource__):
     https://github.com/typeworld/typeworld/tree/master/Lib/typeworld/api
     """
 
-    # Designers
-    for __designerDataSource__ in __ownDataSource__.__designers__():
+    # # Designers
+    # for __designerDataSource__ in __ownDataSource__.__designers__():
 
-        # Create Designer object, attach to `installableFonts.designers`, apply data
-        designer = typeworld.api.Designer()
-        installableFonts.designers.append(designer)
+    #     # Create Designer object, attach to `installableFonts.designers`, apply data
+    #     designer = typeworld.api.Designer()
+    #     installableFonts.designers.append(designer)
+
+    #     # Apply data
+    #     designer.keyword = __designerDataSource__.__keyword__
+    #     designer.name.en = __designerDataSource__.__name__
+    #     # etc ...
+
+    # Create Foundry object, attach to `installableFonts.foundries`, apply data
+    foundry = typeworld.api.Foundry()
+    installableFonts.foundries.append(foundry)
+    foundry.name.en = "Awesome Fonts"
+    foundry.name.de = "Geile Schriften"
+    foundry.uniqueID = "AwesomeFonts"
+    foundry.websiteURL = "https://awesomefonts.appspot.com"
+
+    foundry.styling = {
+        "light": {
+            "headerColor": "6eff00",
+            "headerTextColor": "000000",
+            "headerLinkColor": "000000",
+            "textColor": "000000",
+            "linkColor": "009ee2",
+            "selectionColor": "6eff00",
+            "selectionTextColor": "000000",
+            "buttonColor": "197AA3",
+            "buttonTextColor": "FFFFFF",
+            "informationViewBackgroundColor": "c5ff00",
+            "informationViewTextColor": "000000",
+            "informationViewLinkColor": "009ee2",
+            "informationViewButtonColor": "ffff00",
+            "informationViewButtonTextColor": "000000",
+            "logoURL": "https://awesomefonts.appspot.com/static/images/logo.svg",
+        },
+    }
+
+    # License Definitions
+
+    # Create LicenseDefinition object, attach to `foundry`
+    licenseDefition = typeworld.api.LicenseDefinition()
+    foundry.licenses.append(licenseDefition)
+
+    # Apply data
+    licenseDefition.keyword = "ofl"
+    licenseDefition.name.en = "SIL Open Font License (OFL)"
+    licenseDefition.URL = "https://scripts.sil.org/OFL"
+
+    # Families
+    for product in [x.get() for x in __user__.purchasedProductKeys]:
+
+        # Create Family object, attach to `foundry`
+        family = typeworld.api.Family()
+        foundry.families.append(family)
 
         # Apply data
-        designer.keyword = __designerDataSource__.__keyword__
-        designer.name.en = __designerDataSource__.__name__
-        # etc ...
+        family.uniqueID = family.parent.uniqueID + "-" + product.name.replace(" ", "")
+        family.name.en = product.name
 
-    # Foundry
-    for __foundryDataSource__ in __ownDataSource__.__foundries__():
+        # Fonts
 
-        # Create Foundry object, attach to `installableFonts.foundries`, apply data
-        foundry = typeworld.api.Foundry()
-        installableFonts.foundry.append(foundry)
+        # Create Font object, attach to `family.fonts`
+        font = typeworld.api.Font()
+        family.fonts.append(font)
 
         # Apply data
-        designer.keyword = __foundryDataSource__.__keyword__
-        designer.name.en = __foundryDataSource__.__name__
-        # etc ...
+        font.uniqueID = font.parent.uniqueID + "-" + "Regular"
+        font.name.en = "Regular"
+        font.postScriptName = product.name.replace(" ", "") + "-" + "Regular"
+        font.purpose = "desktop"
+        font.format = product.font["filename"].split(".")[-1]
+        font.status = "stable"
 
-        # License Definitions
-        for __licenseDataSource__ in __foundryDataSource__.licenses():
+        # Version
+        version = typeworld.api.Version()
+        font.versions.append(version)
+        version.number = 1.0
 
-            # Create LicenseDefinition object, attach to `foundry`
-            licenseDefition = typeworld.api.LicenseDefinition()
-            foundry.licenses.append(licenseDefition)
-
-            # Apply data
-            licenseDefition.keyword = __licenseDataSource__.__keyword__
-            # etc ...
-
-        # Families
-        for __familyDataSource__ in __foundryDataSource__.licenses():
-
-            # Create Family object, attach to `foundry`
-            family = typeworld.api.Family()
-            foundry.families.append(family)
-
-            # Apply data
-            family.uniqueID = __familyDataSource__.__uniqueID__
-            # etc ...
-
-            # Family-level Font Versions
-            # Here, we’re defining family-wide font versions.
-            # You could also set the on font-level instead, or a combination of both
-            for __versionDataSource__ in __familyDataSource__.__versions__():
-
-                # Create Version object, attach to `family.versions`
-                version = typeworld.api.Version()
-                family.versions.append(version)
-
-                # Apply data
-                version.number = __versionDataSource__.__versionNumber__
-                # etc ...
-
-            # Fonts
-            for __fontDataSource__ in __familyDataSource__.__fonts__():
-
-                # Create Font object, attach to `family.fonts`
-                font = typeworld.api.Font()
-                family.fonts.append(font)
-
-                # Apply data
-                font.uniqueID = __fontDataSource__.__uniqueID__
-                # etc ...
+        # LicenseUsage
+        licenseUsage = typeworld.api.LicenseUsage()
+        font.usedLicenses.append(licenseUsage)
+        licenseUsage.keyword = "ofl"
 
     # Return successfully, no message
     return True, None
+
+
+def productByID(fontID):
+    for product in classes.Product.query().fetch():
+        if product.name.replace(" ", "") in fontID:
+            return product
 
 
 def createInstallFontsObjectTree(
@@ -574,78 +619,79 @@ def createInstallFontsObjectTree(
     for fontID, fontVersion in fontsList:
 
         # Load own data source
-        __fontDataSource__ = __ownDataSource__.__fontDataSource__(fontID)
+        product = productByID(fontID)
 
         # Create InstallFontAsset object, attach to `installFonts.assets`
         asset = typeworld.api.InstallFontAsset()
         installFonts.assets.append(asset)
 
         # Couldn't find data source by ID, return `unknownFont`
-        if __fontDataSource__ == None:
+        if product == None:
             asset.response = "unknownFont"
 
         # In case your server observes license compliance, it needs to track
         # font installations. These are identified by the tripled
         # `subscriptionID, anonymousAppID, fontID`.
 
-        # See whether user’s seat allowance has been reached for this font
-        seats = __ownDataSource__.__recordedFontInstallations__(subscriptionID, anonymousAppID, fontID)
+        # # See whether user’s seat allowance has been reached for this font
+        # seats = __ownDataSource__.__recordedFontInstallations__(subscriptionID, anonymousAppID, fontID)
 
-        # Installed seats have reached seat allowance, return `seatAllowanceReached`
-        if seats >= __fontDataSource__.__licenseDataSource__.__allowedSeats__:
-            asset.response = "seatAllowanceReached"
+        # # Installed seats have reached seat allowance, return `seatAllowanceReached`
+        # if seats >= __fontDataSource__.__licenseDataSource__.__allowedSeats__:
+        #     asset.response = "seatAllowanceReached"
 
         # All go, let’s serve the font
 
         # Apply data
         asset.response = "success"
-        asset.uniqueID = __fontDataSource__.__uniqueID__
+        asset.uniqueID = "AwesomeFonts" + "-" + product.name.replace(" ", "") + "-" + "Regular"
         asset.encoding = "base64"
-        asset.mimeType = "font/otf"
-        asset.data = __fontDataSource__.__binaryFontData__
+        asset.mimeType = "font/" + product.font["filename"].split(".")[-1]
+        asset.data = base64.b64encode(product.font["stream"]).decode()
+        asset.version = 1.0
 
-        # Font is not a free font
-        if __fontDataSource__.__protected__:
+        # # Font is not a free font
+        # if __fontDataSource__.__protected__:
 
-            # Finally, let’s record this installation in the database, to count seats for each font per license
-            # This call is related to `__fontDataSource__.__recordedFontInstallations__(fontID, subscriptionID, anonymousAppID)` from above where
-            # number of previously installed seats is checked, which is a result of this following recording.
-            # The parameters `fontVersion`, `userName`, and `userEmail` are not strictly necessary for this recording, but you may
-            # want to save them into your database for analysis.
+        #     # Finally, let’s record this installation in the database, to count seats for each font per license
+        #     # This call is related to `__fontDataSource__.__recordedFontInstallations__(fontID, subscriptionID, anonymousAppID)` from above where
+        #     # number of previously installed seats is checked, which is a result of this following recording.
+        #     # The parameters `fontVersion`, `userName`, and `userEmail` are not strictly necessary for this recording, but you may
+        #     # want to save them into your database for analysis.
 
-            # Font is a trial font, so we may have to update previously existing font installation records
-            if __fontDataSource__.__isTrialFont__:
+        #     # Font is a trial font, so we may have to update previously existing font installation records
+        #     if __fontDataSource__.__isTrialFont__:
 
-                # Font has not been previously installed, so no record exists:
-                if seats == None:
-                    __ownDataSource__.__recordFontInstallation__(
-                        subscriptionID,
-                        anonymousAppID,
-                        fontID,
-                        fontVersion,  # Not to be used for installation identification
-                        userName,  # Not to be used for installation identification
-                        userEmail,  # Not to be used for installation identification
-                    )
+        #         # Font has not been previously installed, so no record exists:
+        #         if seats == None:
+        #             __ownDataSource__.__recordFontInstallation__(
+        #                 subscriptionID,
+        #                 anonymousAppID,
+        #                 fontID,
+        #                 fontVersion,  # Not to be used for installation identification
+        #                 userName,  # Not to be used for installation identification
+        #                 userEmail,  # Not to be used for installation identification
+        #             )
 
-                # Font has been previously installed (so a record exists), but is marked as 'uninstalled', so we update that
-                else:
-                    __ownDataSource__.__updateFontInstallation__(
-                        subscriptionID,
-                        anonymousAppID,
-                        fontID,
-                        trialInstalledStatus=True,
-                    )
+        #         # Font has been previously installed (so a record exists), but is marked as 'uninstalled', so we update that
+        #         else:
+        #             __ownDataSource__.__updateFontInstallation__(
+        #                 subscriptionID,
+        #                 anonymousAppID,
+        #                 fontID,
+        #                 trialInstalledStatus=True,
+        #             )
 
-            # Font is not a trial font, so just record installation normally
-            else:
-                __ownDataSource__.__recordFontInstallation__(
-                    subscriptionID,
-                    anonymousAppID,
-                    fontID,
-                    fontVersion,  # Not to be used for installation identification
-                    userName,  # Not to be used for installation identification
-                    userEmail,  # Not to be used for installation identification
-                )
+        #     # Font is not a trial font, so just record installation normally
+        #     else:
+        #         __ownDataSource__.__recordFontInstallation__(
+        #             subscriptionID,
+        #             anonymousAppID,
+        #             fontID,
+        #             fontVersion,  # Not to be used for installation identification
+        #             userName,  # Not to be used for installation identification
+        #             userEmail,  # Not to be used for installation identification
+        #         )
 
     # Return successfully, no message
     return True, None
@@ -673,44 +719,44 @@ def createUninstallFontsObjectTree(
     for fontID in fontsList:
 
         # Load own data source
-        __fontDataSource__ = __ownDataSource__.__fontDataSource__(fontID)
+        product = productByID(fontID)
 
         # Create UninstallFontAsset object, attach to `uninstallFonts.assets`
         asset = typeworld.api.UninstallFontAsset()
         uninstallFonts.assets.append(asset)
 
         # Couldn't find data source by ID, set response, return immediately
-        if __fontDataSource__ == None:
+        if product == None:
             asset.response = "unknownFont"
 
-        # See how many seats the user has installed
-        seats = __ownDataSource__.__recordedFontInstallations__(fontID, subscriptionID, anonymousAppID)
+        # # See how many seats the user has installed
+        # seats = __ownDataSource__.__recordedFontInstallations__(fontID, subscriptionID, anonymousAppID)
 
-        # No seats have been recorded for this `anonymousAppID`, so we return the `unknownInstallation` command
-        # Note: This is critical for the remote de-authorization for entire app instances to work properly,
-        # and will be checked by the API Endpoint Validator (see: https://type.world/developer/validate)
-        # See: https://type.world/developer#remote-de-authorization-of-app-instances-by-the-user
-        if seats == None:
-            asset.response = "unknownInstallation"
+        # # No seats have been recorded for this `anonymousAppID`, so we return the `unknownInstallation` command
+        # # Note: This is critical for the remote de-authorization for entire app instances to work properly,
+        # # and will be checked by the API Endpoint Validator (see: https://type.world/developer/validate)
+        # # See: https://type.world/developer#remote-de-authorization-of-app-instances-by-the-user
+        # if seats == None:
+        #     asset.response = "unknownInstallation"
 
         # All go, let’s delete the font
         asset.response = "success"
 
-        # Font is not a free font
-        if __fontDataSource__.__protected__:
+        # # Font is not a free font
+        # if __fontDataSource__.__protected__:
 
-            # Finally, let’s delete this installation record from the database
+        #     # Finally, let’s delete this installation record from the database
 
-            # Font is a trial font, so instead of deleting this font installation from our records, we’ll just update it, marked as not installed,
-            # because if you delete it instead, you effectively reset the the user’s trial period of that font.
-            if __fontDataSource__.__isTrialFont__:
-                __ownDataSource__.__updateFontInstallation__(
-                    fontID, subscriptionID, anonymousAppID, trialInstalledStatus=False
-                )
+        #     # Font is a trial font, so instead of deleting this font installation from our records, we’ll just update it, marked as not installed,
+        #     # because if you delete it instead, you effectively reset the the user’s trial period of that font.
+        #     if __fontDataSource__.__isTrialFont__:
+        #         __ownDataSource__.__updateFontInstallation__(
+        #             fontID, subscriptionID, anonymousAppID, trialInstalledStatus=False
+        #         )
 
-            # Font is not a trial font, so just delete the installation record normally
-            else:
-                __ownDataSource__.__deleteFontInstallationRecord__(fontID, subscriptionID, anonymousAppID)
+        #     # Font is not a trial font, so just delete the installation record normally
+        #     else:
+        #         __ownDataSource__.__deleteFontInstallationRecord__(fontID, subscriptionID, anonymousAppID)
 
     # Return successfully, no message
     return True, None
@@ -727,9 +773,13 @@ def verifyUserCredentials(
     Verify a valid Type.World user account with the central server
     """
 
+    print("verifyUserCredentials")
+
     # Shortcut: if APIKey is identical to incomingAPIKey, that means that the
     # request comes from the central server and since it sent your own API key for
     # verification, we can instantly return the verification to be successful
+    print("APIKey", APIKey)
+    print("incomingAPIKey", incomingAPIKey)
     if APIKey == incomingAPIKey:
         return True
 
@@ -741,6 +791,8 @@ def verifyUserCredentials(
         "anonymousTypeWorldUserID": anonymousTypeWorldUserID,
         "anonymousAppID": anonymousAppID,
     }
+
+    print("verifyUserCredentials parameters", parameters)
 
     # Optional `subscriptionURL` is defined, sadd it
     if subscriptionURL:
@@ -760,6 +812,8 @@ def verifyUserCredentials(
 
         # Read response data from a JSON string
         responseData = json.loads(response.decode())
+
+        print("verifyUserCredentials response", responseData)
 
         # Verfification process was successful
         if responseData["response"] == "success":

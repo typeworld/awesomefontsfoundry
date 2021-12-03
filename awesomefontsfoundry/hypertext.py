@@ -243,9 +243,9 @@ class HTML(hotmetal.HotMetal):
                 self.SPAN(class_="link")
                 self.A(
                     onclick=(
-                        f"login('{definitions.TYPEWORLD_SIGNIN_URL}', '{definitions.TYPEWORLD_SIGNIN_CLIENTID}',"
-                        f" window.location.href, '{definitions.TYPEWORLD_SIGNIN_SCOPE}',"
-                        f" '{g.session.get('loginCode')}')"
+                        f"login('{definitions.TYPEWORLD_SIGNIN_URL}',"
+                        f" '{awesomefontsfoundry.secret('TYPEWORLD_SIGNIN_CLIENTID')}', window.location.href,"
+                        f" '{definitions.TYPEWORLD_SIGNIN_SCOPE}', '{g.session.get('loginCode')}')"
                     )
                 )
                 self.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')

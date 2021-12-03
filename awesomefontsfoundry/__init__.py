@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from google.cloud.ndb.model import Expando
 import requests
 from google.cloud import ndb
 from google.cloud import secretmanager
@@ -24,7 +25,7 @@ else:
     secretClient = secretmanager.SecretManagerServiceClient.from_service_account_json(keyfile)
 
 
-def secret(secret_id, version_id=1):
+def secret(secret_id, version_id="latest"):
     """
     Access Google Cloud Secrets
     https://cloud.google.com/secret-manager/docs/creating-and-accessing-secrets#access
@@ -109,8 +110,8 @@ def before_request():
                 "grant_type": "authorization_code",
                 "code": g.form._get("code"),
                 "redirect_uri": "http://0.0.0.0:8080",
-                "client_id": definitions.TYPEWORLD_SIGNIN_CLIENTID,
-                "client_secret": definitions.TYPEWORLD_SIGNIN_CLIENTSECRET,
+                "client_id": secret("TYPEWORLD_SIGNIN_CLIENTID"),
+                "client_secret": secret("TYPEWORLD_SIGNIN_CLIENTSECRET"),
             },
         ).json()
 
@@ -139,12 +140,15 @@ def before_request():
 
     # Test token
     if g.user:
-        response = g.user.userdata()
-        if response["status"] == "fail":
-            g.user.typeWorldToken = None
-            g.user.put()
+        try:
+            response = g.user.userdata()
+            if response["status"] == "fail":
+                g.user.typeWorldToken = None
+                g.user.put()
+                g.user = None
+                g.session.set("loginCode", helpers.Garbage(40))
+        except Exception:
             g.user = None
-            g.session.set("loginCode", helpers.Garbage(40))
 
     # Admin
     if g.user and g.user.admin:

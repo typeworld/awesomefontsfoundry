@@ -55,7 +55,8 @@ class User(TWNDBModel):
             return {"message": "Token is revoked", "status": "fail"}
 
     def subscriptionURL(self, accessToken=False):
-        url = f"typeworld://json+{self.key.id()}:{self.secretKey}@awesomefonts.appspot.com/typeworldapi"
+        protocol, root = definitions.ROOT.split("://")
+        url = f"typeworld://json+{protocol}//{self.key.id()}:{self.secretKey}@{root}/typeworldapi"
         if accessToken:
             url = url.replace("@", f":{self.accessToken}@")
         return url
@@ -80,6 +81,7 @@ class Product(TWNDBModel):
     name = web.StringProperty(required=True)
     googleFontsFamilySuffix = web.StringProperty()
     price = web.IntegerProperty(default=39)
+    font = web.FileProperty()
 
     def overview(self, parameters={}, directCallParameters={}):
         g.html.DIV(class_="clear product")
@@ -95,6 +97,12 @@ class Product(TWNDBModel):
         if g.admin:
             g.html.BR()
             self.edit()
+            self.delete()
+            if self.font:
+                g.html.BR()
+                g.html.A(href=self.downloadLink("font"))
+                g.html.T("Download")
+                g.html._A()
         g.html._DIV()
         g.html._DIV()  # .clear
 

@@ -86,7 +86,7 @@ import typeworld.client
 import os
 import json
 import semver
-from flask import abort, g, request
+from flask import abort, g, request, send_file
 from google.cloud.ndb.model import KeyProperty
 import google.cloud.ndb.model
 import importlib
@@ -95,6 +95,7 @@ from google.cloud import ndb
 from urllib.parse import unquote, urlencode
 import copy
 import hotmetal
+import io
 
 awesomefontsfoundry.app.config["modules"].append("web")
 
@@ -278,6 +279,12 @@ def before_request_web():
         else:
             g.form[key] = request.values.get(key)
 
+    for key in request.files:
+        if key.startswith(FORM_PREFIX):
+            g.form[key[len(FORM_PREFIX) :]] = request.files.get(key)  # noqa E203
+        else:
+            g.form[key] = request.files.get(key)
+
     if g.form._get("propertyNames"):
         g.form["propertyNames"] = ",".join(
             [
@@ -320,6 +327,20 @@ class StringProperty(ndb.StringProperty, Property):
 
 class BlobProperty(ndb.BlobProperty, Property):
     pass
+
+
+class FileProperty(ndb.PickleProperty, Property):
+    def dialog(self, key, value, placeholder=None):
+        g.html.INPUT(id=key, name=key, type="file")
+
+    def shape(self, value):
+        if value == UNDEFINED:
+            return UNDEFINED
+        else:
+            return {
+                "filename": value.filename,
+                "stream": value.read(),
+            }
 
 
 class TextProperty(ndb.TextProperty, Property):
@@ -674,6 +695,11 @@ class WebAppModel(ndb.Model):
     # Not implemented here because being detected by hasattr()
     # def beforeDelete(self):
     #     pass
+
+    def downloadLink(self, propertyName):
+        return (
+            f"/downloadItemProperty?class={self.__class__.__name__}&key={self.publicID()}&propertyName={propertyName}"
+        )
 
     @classmethod
     def _post_get_hook(cls, key, future):
@@ -1250,6 +1276,29 @@ def executeMethod():
     return g.html.generate()
 
 
+@awesomefontsfoundry.app.route("/downloadItemProperty", methods=["GET"])
+def downloadItemProperty():
+    if not g.form._get("class"):
+        return abort(400)
+    item = getClass(g.form._get("key"), g.form._get("class"))
+
+    if not hasattr(item, g.form._get("propertyName")):
+        return abort(404)
+
+    if not getattr(item, g.form._get("propertyName")):
+        return abort(404)
+
+    file = getattr(item, g.form._get("propertyName"))
+
+    mem = io.BytesIO()
+    mem.write(file["stream"])
+    mem.seek(0)
+
+    return send_file(
+        mem, as_attachment=True, attachment_filename=file["filename"], mimetype="application/octet-stream"
+    )
+
+
 @awesomefontsfoundry.app.route("/editProperties", methods=["POST"])
 def editProperties():
 
@@ -1305,7 +1354,8 @@ def editProperties():
                             return g.html.generate(), 900
 
                         # Set the value
-                        setattr(item, propertyName, value)
+                        if value != UNDEFINED:
+                            setattr(item, propertyName, value)
 
                     # Required check
                     if attr._required and not value:
