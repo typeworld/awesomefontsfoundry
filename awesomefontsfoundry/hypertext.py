@@ -226,7 +226,7 @@ class HTML(hotmetal.HotMetal):
         self.DIV(class_="floatright")
         if g.user:
             self.SPAN(class_="link")
-            self.T(g.user.userdata()["userdata"]["scope"]["account"]["data"]["email"])
+            self.T(g.user.data["userdata"]["scope"]["account"]["data"]["email"])
             self._SPAN()
             self.SPAN(class_="link")
             self.A(href="/account")
@@ -262,7 +262,9 @@ class HTML(hotmetal.HotMetal):
         self.T('<span class="material-icons-outlined">shopping_cart</span> Cart')
         self._A()
         if products:
-            self.T(f" ({len(products)})")
+            self.SPAN(class_="cartindicator")
+            self.T(len(products))
+            self._SPAN()
         self._SPAN()
 
         self._DIV()

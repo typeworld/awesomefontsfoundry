@@ -1,8 +1,6 @@
 # project
-from os import access
-from google.cloud.ndb.model import StringProperty
 import awesomefontsfoundry
-from awesomefontsfoundry import secret, web, definitions
+from awesomefontsfoundry import web, definitions
 
 # other
 import requests
@@ -110,7 +108,7 @@ class Product(TWNDBModel):
         g.html.DIV(class_="clear cart")
         g.html.DIV(class_="floatleft font")
         g.html.T(self.name)
-        g.html.T(f", 1 License")
+        g.html.T(", 1 License")
         g.html._DIV()
         g.html.DIV(class_="floatright buy")
         g.html.T(f"{self.price}€")
@@ -125,13 +123,6 @@ class Product(TWNDBModel):
         g.html.DIV(class_="clear account")
         g.html.DIV(class_="floatleft font")
         g.html.T(self.name)
-        g.html.T(f", 1 License")
+        g.html.T(", 1 License")
         g.html._DIV()
-        # g.html.DIV(class_="floatright buy")
-        # g.html.T(f"{self.price}€")
-        # g.html.T("&nbsp;&nbsp;")
-        # g.html.A(onclick=f"remove('{self.name}');")
-        # g.html.T("Remove")
-        # g.html._A()
-        # g.html._DIV()
         g.html._DIV()  # .clear

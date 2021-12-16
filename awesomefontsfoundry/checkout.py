@@ -2,8 +2,6 @@ import awesomefontsfoundry
 from awesomefontsfoundry import classes, definitions, account, helpers
 from flask import g
 import requests
-from awesomefontsfoundry.helpers import Garbage
-from awesomefontsfoundry.web import resetpassword
 
 
 @awesomefontsfoundry.app.route("/cart", methods=["GET", "POST"])
@@ -36,7 +34,7 @@ def cart():
 
         g.html.P(style="text-align: center;")
         g.html.SPAN(class_="link")
-        g.html.A(href="/checkout")
+        g.html.A(href="/checkout", class_="button")
         g.html.T('<span class="material-icons-outlined">shopping_cart_checkout</span> Proceed to Checkout')
         g.html._A()
         g.html._SPAN()
@@ -68,11 +66,12 @@ def checkout():
         g.html.P()
         g.html.SPAN(class_="link")
         g.html.A(
+            class_="button",
             onclick=(
                 f"login('{definitions.TYPEWORLD_SIGNIN_URL}',"
                 f" '{awesomefontsfoundry.secret('TYPEWORLD_SIGNIN_CLIENTID')}', window.location.href,"
                 f" '{definitions.TYPEWORLD_SIGNIN_SCOPE}', '{g.session.get('loginCode')}')"
-            )
+            ),
         )
         g.html.T('<span class="material-icons-outlined">login</span> Sign In with Type.World')
         g.html._A()
@@ -104,7 +103,7 @@ def checkout():
 
         g.html.P()
         g.html.SPAN(class_="link")
-        g.html.A(onclick="checkout();")
+        g.html.A(onclick="checkout();", class_="button")
         g.html.T('<span class="material-icons-outlined">shopping_cart_checkout</span> Buy Fonts')
         g.html._A()
         g.html._SPAN()
@@ -128,7 +127,7 @@ def done():
     g.html.T(
         'We sent you an invitation to install the purchased fonts via the <a href="https://type.world"'
         ' target="_blank">Type.World</a> app to your Type.World user account at '
-        f' <b>{g.user.userdata()["userdata"]["scope"]["account"]["data"]["email"]}</b>'
+        f' <b>{g.user.data["userdata"]["scope"]["account"]["data"]["email"]}</b>'
     )
     g.html._P()
 
@@ -176,7 +175,7 @@ def cart_checkout():
     # Invite user to share subscription
     url = g.user.subscriptionURL()
     parameters = {
-        "targetUserEmail": g.user.userdata()["userdata"]["scope"]["account"]["data"]["email"],
+        "targetUserEmail": g.user.data["userdata"]["scope"]["account"]["data"]["email"],
         "APIKey": awesomefontsfoundry.secret("TYPEWORLD_API_KEY"),
         "subscriptionURL": url,
     }

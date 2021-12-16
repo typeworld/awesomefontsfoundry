@@ -1,16 +1,11 @@
 import logging
 import os
 import time
-from google.cloud.ndb.model import Expando
 import requests
 from google.cloud import ndb
 from google.cloud import secretmanager
 from flask import Flask, g, request, Response
 from flask import session as flaskSession
-
-# from flask_session import Session
-
-# from flask_session import Session
 
 logging.basicConfig(level=logging.WARNING)
 GAE = os.getenv("GAE_ENV", "").startswith("standard")
@@ -55,7 +50,7 @@ app.config["modules"] = ["__main__"]
 # happen here because of circular imports,
 from . import account  # noqa: E402,F401
 from . import classes  # noqa: E402
-from . import checkout  # noqa: E402
+from . import checkout  # noqa: E402,F401
 from . import definitions  # noqa: E402
 from . import helpers  # noqa: E402
 from . import hypertext  # noqa: E402
@@ -86,73 +81,90 @@ def before_request():
     g.ndb_puts = []
     g.html = hypertext.HTML()
 
-    # Session
-    # flaskSession.permanent = True
-    if "sessionID" in flaskSession and flaskSession["sessionID"]:
-        sessionID = flaskSession["sessionID"]
-        g.session = ndb.Key(urlsafe=sessionID.encode()).get(read_consistency=ndb.STRONG)
-    else:
-        g.session = classes.Session()
-        g.session.put()
-        flaskSession["sessionID"] = g.session.key.urlsafe().decode()
+    if request.endpoint != "static":
 
-    # Set random loginCode
-    if not g.session.get("loginCode"):
-        g.session.set("loginCode", helpers.Garbage(40))
+        # Session
+        # flaskSession.permanent = True
+        if "sessionID" in flaskSession and flaskSession["sessionID"]:
+            sessionID = flaskSession["sessionID"]
+            g.session = ndb.Key(urlsafe=sessionID.encode()).get(read_consistency=ndb.STRONG)
+        else:
+            g.session = classes.Session()
+            g.session.put()
+            flaskSession["sessionID"] = g.session.key.urlsafe().decode()
 
-    # Catch Type.World Sign In here
-    if g.form._get("code") and g.form._get("state") and g.form._get("state") == g.session.get("loginCode"):
+        # Set random loginCode
+        if not g.session.get("loginCode"):
+            g.session.set("loginCode", helpers.Garbage(40))
 
-        # Get token with code
-        getTokenResponse = requests.post(
-            definitions.TYPEWORLD_GETTOKEN_URL,
-            data={
-                "grant_type": "authorization_code",
-                "code": g.form._get("code"),
-                "redirect_uri": "http://0.0.0.0:8080",
-                "client_id": secret("TYPEWORLD_SIGNIN_CLIENTID"),
-                "client_secret": secret("TYPEWORLD_SIGNIN_CLIENTSECRET"),
-            },
-        ).json()
+        # Catch Type.World Sign In here
+        if g.form._get("code") and g.form._get("state") and g.form._get("state") == g.session.get("loginCode"):
 
-        # Redeem token for user data
-        if getTokenResponse["status"] == "success":
-            getUserDataResponse = requests.post(
-                definitions.TYPEWORLD_GETUSERDATA_URL,
-                headers={"Authorization": "Bearer " + getTokenResponse["access_token"]},
+            # Get token with code
+            getTokenResponse = requests.post(
+                definitions.TYPEWORLD_GETTOKEN_URL,
+                data={
+                    "grant_type": "authorization_code",
+                    "code": g.form._get("code"),
+                    "redirect_uri": "http://0.0.0.0:8080",
+                    "client_id": secret("TYPEWORLD_SIGNIN_CLIENTID"),
+                    "client_secret": secret("TYPEWORLD_SIGNIN_CLIENTSECRET"),
+                },
             ).json()
-            # Create user if necessary and save token
-            if getUserDataResponse["status"] == "success":
-                user = classes.User.get_or_insert(getUserDataResponse["userdata"]["user_id"])
-                user.typeWorldToken = getTokenResponse["access_token"]
-                user.put()
-                g.session.set("userID", user.userdata()["userdata"]["user_id"])
-                g.user = user
 
-                g.html.SCRIPT()
-                g.html.T("window.history.pushState('', '', window.location.href.split('?')[0]);")
-                g.html._SCRIPT()
+            # Redeem token for user data
+            if getTokenResponse["status"] == "success":
+                getUserDataResponse = requests.post(
+                    definitions.TYPEWORLD_GETUSERDATA_URL,
+                    headers={"Authorization": "Bearer " + getTokenResponse["access_token"]},
+                ).json()
 
-    # Restore user from session
-    else:
-        if g.session.get("userID"):
-            g.user = classes.User.get_or_insert(g.session.get("userID"))
+                # Create user if necessary and save token
+                if getUserDataResponse["status"] == "success":
+                    user = classes.User.get_or_insert(getUserDataResponse["userdata"]["user_id"])
+                    user.typeWorldToken = getTokenResponse["access_token"]
+                    user.put()
+                    g.user = user
 
-    # Test token
-    if g.user:
-        try:
-            response = g.user.userdata()
-            if response["status"] == "fail":
-                g.user.typeWorldToken = None
-                g.user.put()
-                g.user = None
-                g.session.set("loginCode", helpers.Garbage(40))
-        except Exception:
-            g.user = None
+                    # Fetch user data
+                    response = g.user.userdata()
+                    g.session.set("userID", response["userdata"]["user_id"])
+                    g.user.data = response
 
-    # Admin
-    if g.user and g.user.admin:
-        g.admin = True
+                    # Remove incoming authentication parameters from URL for beauty
+                    g.html.SCRIPT()
+                    g.html.T("window.history.pushState('', '', window.location.href.split('?')[0]);")
+                    g.html._SCRIPT()
+
+        # Restore user from session
+        else:
+            if g.session.get("userID"):
+                g.user = classes.User.get_or_insert(g.session.get("userID"))
+
+            # Test if token is still valid
+            # Pull fresh user data from endpoint
+            # otherwise sign user out
+            #
+            # Performance-wise it's not good to do this here on every page load.
+            # Do this once per session or when you expect updates
+            # (such as after a return from the user editing his data on type.world)
+            if g.user:
+                try:
+                    response = g.user.userdata()
+                    if response["status"] == "fail":
+                        g.user.typeWorldToken = None
+                        g.user.put()
+                        g.user = None
+                        g.session.set("loginCode", helpers.Garbage(40))
+                    else:
+                        # Set data here instead of polling each time separately
+                        g.user.data = response
+                except Exception:
+                    g.user = None
+
+        # Admin
+        if g.user and g.user.admin:
+            g.admin = True
 
 
 @app.after_request
@@ -194,7 +206,7 @@ def index():
     # g.html.H1()
     # if g.user:
     #     g.html.T(
-    #         f"Hello {g.user.userdata()['userdata']['scope']['account']['data']['name']},<br />Welcome to Awesome Fonts"
+    #         f"Hello {g.user.data['userdata']['scope']['account']['data']['name']},<br />Welcome to Awesome Fonts"
     #     )
     # else:
     #     g.html.T("Welcome to Awesome Fonts")

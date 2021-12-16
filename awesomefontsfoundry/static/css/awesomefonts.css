@@ -71,6 +71,10 @@ a {
 	text-underline-offset: 4px;
 }
 
+a:active {
+	color: yellow;
+}
+
 #header {
 	/* background-color: rgb(255, 98, 0); */
 	padding: 40px;
@@ -766,7 +770,8 @@ p.date {
 }
 
 .cart, .account, .product {
-	padding: 10px;
+	padding: 20px;
+	background-color: rgba(255, 255, 255, .5);
 }
 
 .product {
@@ -792,3 +797,17 @@ p.date {
 	font-size: 13pt;
     line-height: 140%;
   }
+
+.cartindicator {
+    border-radius:45px; -moz-border-radius:45px; -webkit-border-radius:45px; -khtml-border-radius:45px;
+    background-color: yellow;
+    padding-left: 13px;
+    margin-left: 10px;
+    padding-right: 13px;
+}
+
+button, a.button {
+	text-decoration: none;;
+	background-color: yellow;
+	color: black;
+}
