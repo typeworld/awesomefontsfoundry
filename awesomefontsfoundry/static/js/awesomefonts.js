@@ -3,7 +3,7 @@ function login(url, client_id, redirect_uri, scope, state) {
 }
 
 function edit(url, redirect_uri) {
-    window.location.href = url + "&redirect_uri=" + redirect_uri;
+    window.location.href = url.replace("__place_for_redirect_uri__", redirect_uri);
 }
 
 function logout() {
