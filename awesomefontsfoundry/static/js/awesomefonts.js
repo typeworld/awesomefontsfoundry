@@ -23,6 +23,15 @@ function checkout() {
 }
 
 $(document).ready(function () {
+
+    // Check for outdated edit_token
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') == "failed" && urlParams.get('reason') == "invalid_edit_token") {
+        alert("Your session has expired. We’ll reload the page, then please try again.")
+        window.location.href = window.location.href.split("?")[0];
+    }
+
+
     tippy('[title]', {
         content(reference) {
             const title = reference.getAttribute('title');
